@@ -58,6 +58,11 @@ class TestQuantity(QuantityTestCase):
             assert 4.2 * self.ureg.meter == self.Q_(4.2, 2 * self.ureg.meter)
         assert len(caplog.records) == 1
 
+    def test_quantity_with_quantity(self):
+        x = self.Q_(4.2, "m")
+        assert self.Q_(x, "m").magnitude == 4.2
+        assert self.Q_(x, "cm").magnitude == 420.0
+
     def test_quantity_bool(self):
         assert self.Q_(1, None)
         assert self.Q_(1, "meter")
@@ -1513,7 +1518,7 @@ class TestOffsetUnitMath(QuantityTestCase):
                 assert op.truediv(in1, in2).units == expected.units
                 helpers.assert_quantity_almost_equal(op.truediv(in1, in2), expected)
 
-    exponentiation = [  # resuls without / with autoconvert
+    exponentiation = [  # results without / with autoconvert
         (((10, "degC"), 1), [(10, "degC"), (10, "degC")]),
         (((10, "degC"), 0.5), ["error", (283.15 ** 0.5, "kelvin**0.5")]),
         (((10, "degC"), 0), [(1.0, ""), (1.0, "")]),
@@ -1556,6 +1561,18 @@ class TestOffsetUnitMath(QuantityTestCase):
                 else:
                     expected = expected_copy[i]
                 helpers.assert_quantity_almost_equal(op.pow(in1, in2), expected)
+
+    @helpers.requires_numpy
+    def test_exponentiation_force_ndarray(self):
+        ureg = UnitRegistry(force_ndarray_like=True)
+        q = ureg.Quantity(1, "1 / hours")
+
+        q1 = q ** 2
+        assert all(isinstance(v, int) for v in q1._units.values())
+
+        q2 = q.copy()
+        q2 **= 2
+        assert all(isinstance(v, int) for v in q2._units.values())
 
     @helpers.requires_numpy
     @pytest.mark.parametrize(("input_tuple", "expected"), exponentiation)
